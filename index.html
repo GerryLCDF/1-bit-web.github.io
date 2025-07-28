@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Art Binario (1-bit)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Pixel Art Binario (1-bit)</h1>
+
+    <div class="menu">
+      <div class="menu-row">
+        <label for="canvasWidth">Ancho:</label>
+        <input type="number" id="canvasWidth" value="8" min="4" max="64">
+
+        <label for="canvasHeight">Alto:</label>
+        <input type="number" id="canvasHeight" value="8" min="4" max="64">
+
+        <label>
+          <input type="checkbox" id="keepSquare" checked> Mantener cuadrado
+        </label>
+      </div>
+
+      <div class="menu-row">
+        <label>Clic izquierdo pinta:</label>
+        <select id="leftClick">
+          <option value="1" selected>Negro (1)</option>
+          <option value="0">Blanco (0)</option>
+        </select>
+
+        <label>Clic derecho pinta:</label>
+        <select id="rightClick">
+          <option value="0" selected>Blanco (0)</option>
+          <option value="1">Negro (1)</option>
+        </select>
+      </div>
+
+      <div class="menu-row">
+        <button id="generateCanvas">Generar lienzo</button>
+        <button id="showMatrix">Mostrar matriz</button>
+        <button id="invertColors">Invertir colores</button>
+        <input type="file" id="importBmp" accept=".bmp">
+      </div>
+    </div>
+
+    <div id="canvasWrapper" class="canvas-wrapper">
+      <div id="canvas" class="canvas"></div>
+    </div>
+
+    <!-- NUEVO VISOR DOBLE -->
+    <div class="output-dual">
+      <div class="output-section">
+        <button id="copyMatrix" style="display:none;">Copiar Matriz</button>
+        <h3>Matriz 0/1:</h3>
+        <pre id="matrixOutput"></pre>
+      </div>
+      <div class="output-section">
+        <button id="copyHex" style="display:none;">Copiar HEX</button>
+        <h3>Visor BMP (HEX):</h3>
+        <pre id="hexOutput"></pre>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <a href="https://github.com/" target="_blank">GithubLCDF</a>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
