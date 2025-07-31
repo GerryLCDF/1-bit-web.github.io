@@ -137,3 +137,49 @@ pre {
 #invertColors:hover {
   background: #8c2525;
 }
+
+/* ------ AJUSTES PARA MÓVILES ------ */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+  }
+
+  .menu-row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  input, select, button {
+    font-size: 0.9rem;
+    padding: 4px 6px;
+  }
+
+  .canvas-wrapper {
+    height: 300px;
+    width: 100%;
+  }
+
+  .pixel {
+    width: 16px;
+    height: 16px;
+  }
+
+  pre {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .canvas-wrapper {
+    height: 250px;
+  }
+
+  .pixel {
+    width: 14px;
+    height: 14px;
+  }
+}

@@ -12,6 +12,8 @@ const copyHexBtn = document.getElementById('copyHex');
 const matrixOutput = document.getElementById('matrixOutput');
 const hexOutput = document.getElementById('hexOutput');
 const importBmpInput = document.getElementById('importBmp');
+const invertColorsBtn = document.getElementById('invertColors');
+const bucketToolBtn = document.getElementById('bucketTool');
 
 let width = parseInt(canvasWidthInput.value);
 let height = parseInt(canvasHeightInput.value);
@@ -23,6 +25,10 @@ let startY = 0;
 let offsetX = 0;
 let offsetY = 0;
 let scale = 1;
+let isBucketTool = false;
+
+let isDrawing = false;
+let drawValue = 1;
 
 // Mantener cuadrado
 canvasWidthInput.addEventListener('input', () => {
@@ -47,20 +53,76 @@ function createCanvas() {
   matrix = Array(height).fill().map(() => Array(width).fill(0));
   canvas.innerHTML = '';
 
+  // Eventos Mouse
+  canvas.addEventListener('mousedown', (e) => {
+    if (!e.target.classList.contains('pixel')) return;
+    e.preventDefault();
+    const x = parseInt(e.target.dataset.x);
+    const y = parseInt(e.target.dataset.y);
+    drawValue = (e.button === 0 ? leftClickInput.value : rightClickInput.value);
+
+    if (isBucketTool) {
+      const oldValue = matrix[y][x];
+      if (oldValue != drawValue) {
+        floodFill(x, y, oldValue, parseInt(drawValue));
+        redrawCanvas();
+      }
+    } else {
+      isDrawing = true;
+      paintPixel(e.target, x, y, drawValue);
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!isDrawing || !e.target.classList.contains('pixel') || isBucketTool) return;
+    paintPixel(e.target, parseInt(e.target.dataset.x), parseInt(e.target.dataset.y), drawValue);
+  });
+
+  canvas.addEventListener('mouseup', () => { isDrawing = false; });
+  canvas.addEventListener('mouseleave', () => { isDrawing = false; });
+
+  // Eventos Táctiles (dibujo y cubeta)
+  canvas.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!target || !target.classList.contains('pixel')) return;
+
+    const x = parseInt(target.dataset.x);
+    const y = parseInt(target.dataset.y);
+    drawValue = leftClickInput.value;
+
+    if (isBucketTool) {
+      const oldValue = matrix[y][x];
+      if (oldValue != drawValue) {
+        floodFill(x, y, oldValue, parseInt(drawValue));
+        redrawCanvas();
+      }
+    } else {
+      isDrawing = true;
+      paintPixel(target, x, y, drawValue);
+    }
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (!isDrawing || isBucketTool) return;
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!target || !target.classList.contains('pixel')) return;
+
+    paintPixel(target, parseInt(target.dataset.x), parseInt(target.dataset.y), drawValue);
+  });
+
+  canvas.addEventListener('touchend', () => {
+    isDrawing = false;
+  });
+
+  // Crear píxeles
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const pixel = document.createElement('div');
       pixel.classList.add('pixel');
       pixel.dataset.x = x;
       pixel.dataset.y = y;
-
-      pixel.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        if (e.button === 1) return; // rueda no pinta
-        const colorValue = e.button === 0 ? leftClickInput.value : rightClickInput.value;
-        paintPixel(pixel, x, y, colorValue);
-      });
-
       canvas.appendChild(pixel);
     }
   }
@@ -75,6 +137,30 @@ function paintPixel(pixel, x, y, value) {
   pixel.style.background = value == 1 ? 'black' : 'white';
   updateMatrixOutput();
   updateHexOutput();
+}
+
+// Redibujar canvas
+function redrawCanvas() {
+  const pixels = canvas.querySelectorAll('.pixel');
+  pixels.forEach((pixel) => {
+    const x = parseInt(pixel.dataset.x);
+    const y = parseInt(pixel.dataset.y);
+    pixel.style.background = matrix[y][x] === 1 ? 'black' : 'white';
+  });
+  updateMatrixOutput();
+  updateHexOutput();
+}
+
+// Flood Fill (cubeta)
+function floodFill(x, y, oldValue, newValue) {
+  if (x < 0 || x >= width || y < 0 || y >= height) return;
+  if (matrix[y][x] !== oldValue) return;
+
+  matrix[y][x] = newValue;
+  floodFill(x + 1, y, oldValue, newValue);
+  floodFill(x - 1, y, oldValue, newValue);
+  floodFill(x, y + 1, oldValue, newValue);
+  floodFill(x, y - 1, oldValue, newValue);
 }
 
 // Mostrar matriz
@@ -127,7 +213,6 @@ importBmpInput.addEventListener('change', (e) => {
       canvasHeightInput.value = height;
       createCanvas();
 
-      // Canvas temporal
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = img.width;
       tempCanvas.height = img.height;
@@ -147,16 +232,7 @@ importBmpInput.addEventListener('change', (e) => {
         }
       }
 
-      // Dibujar importado
-      const pixels = canvas.querySelectorAll('.pixel');
-      pixels.forEach((pixel) => {
-        const x = parseInt(pixel.dataset.x);
-        const y = parseInt(pixel.dataset.y);
-        pixel.style.background = matrix[y][x] === 1 ? 'black' : 'white';
-      });
-
-      updateMatrixOutput();
-      updateHexOutput();
+      redrawCanvas();
     };
     img.src = evt.target.result;
   };
@@ -183,7 +259,7 @@ canvasWrapper.addEventListener('wheel', (e) => {
   updateTransform();
 });
 
-// Pan (rueda o clic fuera de píxeles)
+// Pan con mouse
 canvasWrapper.addEventListener('mousedown', (e) => {
   if (e.button === 1 || !e.target.classList.contains('pixel')) {
     isDragging = true;
@@ -207,29 +283,65 @@ canvasWrapper.addEventListener('mousemove', (e) => {
   updateTransform();
 });
 
+// Pan y Zoom táctil
+let lastDistance = 0;
+canvasWrapper.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    lastDistance = getDistance(e.touches[0], e.touches[1]);
+  } else if (e.touches.length === 1 && !e.target.classList.contains('pixel')) {
+    isDragging = true;
+    startX = e.touches[0].clientX - offsetX;
+    startY = e.touches[0].clientY - offsetY;
+  }
+});
+
+canvasWrapper.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2) {
+    // pinch-to-zoom
+    const distance = getDistance(e.touches[0], e.touches[1]);
+    if (lastDistance !== 0) {
+      const delta = distance - lastDistance;
+      scale += delta * 0.005;
+      scale = Math.min(Math.max(scale, 0.5), 4);
+      updateTransform();
+    }
+    lastDistance = distance;
+  } else if (isDragging && e.touches.length === 1) {
+    offsetX = e.touches[0].clientX - startX;
+    offsetY = e.touches[0].clientY - startY;
+    updateTransform();
+  }
+});
+
+canvasWrapper.addEventListener('touchend', () => {
+  isDragging = false;
+  lastDistance = 0;
+});
+
+function getDistance(touch1, touch2) {
+  const dx = touch2.clientX - touch1.clientX;
+  const dy = touch2.clientY - touch1.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 // Inicializar
 generateCanvasBtn.addEventListener('click', createCanvas);
 showMatrixBtn.addEventListener('click', updateMatrixOutput);
-createCanvas();
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+createCanvas();
 
-
-const invertColorsBtn = document.getElementById('invertColors'); // Seleccionamos el botón
-
-// Evento para invertir
+// Invertir colores
 invertColorsBtn.addEventListener('click', () => {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       matrix[y][x] = matrix[y][x] === 1 ? 0 : 1;
     }
   }
-  // Actualizamos la vista de los píxeles
-  const pixels = canvas.querySelectorAll('.pixel');
-  pixels.forEach((pixel) => {
-    const x = parseInt(pixel.dataset.x);
-    const y = parseInt(pixel.dataset.y);
-    pixel.style.background = matrix[y][x] === 1 ? 'black' : 'white';
-  });
-  updateMatrixOutput();
-  updateHexOutput();
+  redrawCanvas();
+});
+
+// Activar cubeta
+bucketToolBtn.addEventListener('click', () => {
+  isBucketTool = !isBucketTool;
+  bucketToolBtn.style.background = isBucketTool ? '#ffcc00' : '#5fcde4';
 });
